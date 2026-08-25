@@ -1,0 +1,1 @@
+- [Online Ludo architecture](online-ludo-architecture.md) — server-authoritative rooms and game state; offline state remains separate.

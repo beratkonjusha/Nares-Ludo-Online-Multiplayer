@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Nares Ludo"
+description = "A real-time multiplayer Ludo game with a shared server-authoritative room, lobby, synchronized turns, dice, moves, reconnect handling, and a preserved offline mode."
+version = "1.0.0"
+id = "artifacts/nares-ludo"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19923
+
+[services.development]
+run = "pnpm --filter @workspace/nares-ludo run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/nares-ludo", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/nares-ludo/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19923"
+BASE_PATH = "/"

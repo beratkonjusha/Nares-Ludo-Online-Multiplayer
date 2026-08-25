@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: ludo
+    description: Server-authoritative multiplayer Ludo rooms
 paths:
   /healthz:
     get:
@@ -24,7 +26,179 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /ludo/rooms:
+    post:
+      operationId: createLudoRoom
+      tags: [ludo]
+      summary: Create a multiplayer room
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoomInput"
+      responses:
+        "201":
+          description: Room created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JoinRoomResponse"
+  /ludo/room/join:
+    post:
+      operationId: joinLudoRoom
+      tags: [ludo]
+      summary: Join a room
+      parameters:
+        - $ref: "#/components/parameters/RoomCodeQuery"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinRoomInput"
+      responses:
+        "200":
+          description: Room joined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JoinRoomResponse"
+        "404":
+          description: Room not found
+        "409":
+          description: Room full
+  /ludo/room:
+    get:
+      operationId: getLudoRoom
+      tags: [ludo]
+      summary: Get current room state
+      parameters:
+        - $ref: "#/components/parameters/RoomCodeQuery"
+        - $ref: "#/components/parameters/PlayerIdQuery"
+      responses:
+        "200":
+          description: Current room state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomState"
+        "404":
+          description: Room not found
+  /ludo/room/player:
+    patch:
+      operationId: updateLudoPlayer
+      tags: [ludo]
+      summary: Update the calling player's configuration
+      parameters:
+        - $ref: "#/components/parameters/RoomCodeQuery"
+        - $ref: "#/components/parameters/PlayerIdQuery"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlayerUpdateInput"
+      responses:
+        "200":
+          description: Updated room state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomState"
+        "400":
+          description: Invalid player update
+        "409":
+          description: Color already reserved
+  /ludo/room/ready:
+    post:
+      operationId: setLudoReady
+      tags: [ludo]
+      summary: Set the calling player's ready state
+      parameters:
+        - $ref: "#/components/parameters/RoomCodeQuery"
+        - $ref: "#/components/parameters/PlayerIdQuery"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReadyInput"
+      responses:
+        "200":
+          description: Updated room state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomState"
+  /ludo/room/roll:
+    post:
+      operationId: rollLudoDice
+      tags: [ludo]
+      summary: Roll the server-authoritative dice
+      parameters:
+        - $ref: "#/components/parameters/RoomCodeQuery"
+        - $ref: "#/components/parameters/PlayerIdQuery"
+      responses:
+        "200":
+          description: Updated game state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomState"
+        "409":
+          description: Roll not allowed
+  /ludo/room/move:
+    post:
+      operationId: moveLudoPiece
+      tags: [ludo]
+      summary: Move one piece after a server dice roll
+      parameters:
+        - $ref: "#/components/parameters/RoomCodeQuery"
+        - $ref: "#/components/parameters/PlayerIdQuery"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MoveInput"
+      responses:
+        "200":
+          description: Updated game state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomState"
+        "409":
+          description: Move not allowed
 components:
+  parameters:
+    RoomCode:
+      name: code
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[0-9]{6}$"
+    RoomCodeQuery:
+      name: code
+      in: query
+      required: true
+      schema:
+        type: string
+        pattern: "^[0-9]{6}$"
+    PlayerId:
+      name: playerId
+      in: path
+      required: true
+      schema:
+        type: string
+    PlayerIdQuery:
+      name: playerId
+      in: query
+      required: true
+      schema:
+        type: string
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +207,82 @@ components:
           type: string
       required:
         - status
+    CreateRoomInput:
+      type: object
+      required: [targetCount, player]
+      properties:
+        targetCount:
+          type: number
+          minimum: 2
+          maximum: 4
+        player:
+          $ref: "#/components/schemas/PlayerInput"
+    JoinRoomInput:
+      type: object
+      required: [player]
+      properties:
+        player:
+          $ref: "#/components/schemas/PlayerInput"
+    PlayerInput:
+      type: object
+      required: [name, color, language]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 24 }
+        color: { type: string, enum: [red, green, yellow, blue] }
+        language: { type: string, enum: [de, en, sq] }
+        image: { type: ["string", "null"], maxLength: 1000000 }
+    PlayerUpdateInput:
+      type: object
+      required: [name, color, language]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 24 }
+        color: { type: string, enum: [red, green, yellow, blue] }
+        language: { type: string, enum: [de, en, sq] }
+        image: { type: ["string", "null"], maxLength: 1000000 }
+    ReadyInput:
+      type: object
+      required: [ready]
+      properties:
+        ready: { type: boolean }
+    MoveInput:
+      type: object
+      required: [tokenIndex]
+      properties:
+        tokenIndex: { type: number, minimum: 0, maximum: 3 }
+    PlayerState:
+      allOf:
+        - $ref: "#/components/schemas/PlayerInput"
+        - type: object
+          required: [id, host, ready, tokens, finished, connected]
+          properties:
+            id: { type: string }
+            host: { type: boolean }
+            ready: { type: boolean }
+            tokens:
+              type: array
+              items: { type: number }
+            finished: { type: number }
+            connected: { type: boolean }
+    RoomState:
+      type: object
+      required: [roomId, hostId, targetCount, players, currentPlayer, diceValue, gamePhase, winner, gameStarted, version]
+      properties:
+        roomId: { type: string }
+        hostId: { type: string }
+        targetCount: { type: number }
+        players:
+          type: array
+          items: { $ref: "#/components/schemas/PlayerState" }
+        currentPlayer: { type: ["string", "null"] }
+        diceValue: { type: ["number", "null"] }
+        gamePhase: { type: string, enum: [lobby, rolling, moving, finished] }
+        winner: { type: ["string", "null"] }
+        gameStarted: { type: boolean }
+        version: { type: number }
+    JoinRoomResponse:
+      type: object
+      required: [playerId, state]
+      properties:
+        playerId: { type: string }
+        state: { $ref: "#/components/schemas/RoomState" }
 
